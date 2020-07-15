@@ -18,7 +18,7 @@ import (
 var (
 	checkoutPath = flag.String("checkoutpath", "", "Folder to clone repos into")
 	authToken    = flag.String("authtoken", "", "Personal Access token")
-	duration     = flag.Duration("delay", 0, "Number of seconds between executions")
+	duration     = flag.Duration("duration", 0, "Number of seconds between executions")
 )
 
 type Mirror struct {
