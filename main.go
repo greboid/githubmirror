@@ -67,10 +67,10 @@ func main() {
 func (m *Mirror) updateOrClone(repo github.Repository) {
 	if _, err := os.Stat(filepath.Join(*checkoutPath, *repo.FullName)); err == nil {
 		log.Printf("Updating: %s\n", *repo.CloneURL)
-		//m.update(repo)
+		m.update(repo)
 	} else {
 		log.Printf("Cloning: %s\n", *repo.CloneURL)
-		//m.clone(repo)
+		m.clone(repo)
 	}
 }
 
