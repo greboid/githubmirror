@@ -37,7 +37,7 @@ go install github.com/greboid/githubmirror
     
 ```
   githubmirror \
-    --authToken [authToken] \
-    --checkoutPath [root checkout path]  \
+    --authtoken [authToken] \
+    --checkoutpath [root checkout path]  \
     --duration [repeat every X duration]
 ```

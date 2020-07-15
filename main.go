@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/go-github/v32/github"
+	"github.com/kouhin/envflag"
 	"golang.org/x/oauth2"
 	"log"
 	"os"
@@ -14,7 +16,7 @@ import (
 )
 
 var (
-	checkoutPath = flag.String("path", "", "Folder to clone repos into")
+	checkoutPath = flag.String("checkoutpath", "", "Folder to clone repos into")
 	authToken    = flag.String("token", "", "Personal Access token")
 	duration     = flag.Duration("delay", 24*time.Hour, "Number of seconds between executions")
 )
@@ -26,6 +28,10 @@ type Mirror struct {
 }
 
 func main() {
+	if err := envflag.Parse(); err != nil {
+		fmt.Printf("Unable to load config: %s\r\n", err.Error())
+		return
+	}
 	if *authToken == "" || *checkoutPath == "" {
 		flag.Usage()
 		return
@@ -121,7 +127,7 @@ func (m *Mirror) update(repo github.Repository) {
 	}
 	err = workTree.Pull(&git.PullOptions{
 		Force: true,
-		Auth: m.auth,
+		Auth:  m.auth,
 	})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		log.Printf("Pull error: %s\n", err)
