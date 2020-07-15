@@ -17,8 +17,8 @@ import (
 
 var (
 	checkoutPath = flag.String("checkoutpath", "", "Folder to clone repos into")
-	authToken    = flag.String("token", "", "Personal Access token")
-	duration     = flag.Duration("delay", 24*time.Hour, "Number of seconds between executions")
+	authToken    = flag.String("authtoken", "", "Personal Access token")
+	duration     = flag.Duration("delay", 0, "Number of seconds between executions")
 )
 
 type Mirror struct {
@@ -49,13 +49,12 @@ func main() {
 	}
 
 	if *duration < time.Minute {
-		log.Print("Running once")
 		if err := mirror.updateOrCloneRepos(); err != nil {
 			log.Fatalf("Error mirroring repos: %s\n", err.Error())
 		}
 		return
 	}
-	log.Print("Running repeatedly\n")
+	log.Printf("Running every %s", *duration)
 	for {
 		log.Print("Mirroring Repositories\n")
 		if err := mirror.updateOrCloneRepos(); err != nil {
@@ -68,10 +67,10 @@ func main() {
 func (m *Mirror) updateOrClone(repo github.Repository) {
 	if _, err := os.Stat(filepath.Join(*checkoutPath, *repo.FullName)); err == nil {
 		log.Printf("Updating: %s\n", *repo.CloneURL)
-		m.update(repo)
+		//m.update(repo)
 	} else {
 		log.Printf("Cloning: %s\n", *repo.CloneURL)
-		m.clone(repo)
+		//m.clone(repo)
 	}
 }
 
