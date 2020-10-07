@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	checkoutPath = flag.String("checkoutpath", "", "Folder to clone repos into")
+	checkoutPath = flag.String("checkoutpath", "/data", "Folder to clone repos into")
 	authToken    = flag.String("authtoken", "", "Personal Access token")
 	duration     = flag.Duration("duration", 0, "Number of seconds between executions")
 )

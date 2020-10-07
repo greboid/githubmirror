@@ -11,6 +11,7 @@ RUN adduser \
     --no-create-home \
     --uid "${UID}" \
     "${USER}"
+RUN mkdir /data
 
 WORKDIR /app
 COPY . /app
@@ -22,6 +23,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder --chown=appuser /data /data
 
 COPY --from=builder /app/main /githubmirror
 USER appuser:appuser
