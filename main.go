@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/google/go-github/v32/github"
 	"github.com/kouhin/envflag"
+	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
 	"log"
 	"os"
@@ -23,8 +23,26 @@ var (
 
 type Mirror struct {
 	ctx    context.Context
-	client *github.Client
+	client *githubv4.Client
 	auth   *http.BasicAuth
+	login  string
+}
+
+type ListRepositories struct {
+	User struct {
+		Repositories struct {
+			PageInfo struct {
+				EndCursor   string
+				HasNextPage bool
+			}
+			Nodes []Repository
+		} `graphql:"repositories(first: 100)"`
+	} `graphql:"user(login: $login)"`
+}
+
+type Repository struct {
+	NameWithOwner string
+	Url string
 }
 
 func main() {
@@ -39,7 +57,7 @@ func main() {
 
 	mirror := &Mirror{
 		ctx: context.Background(),
-		client: github.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
+		client: githubv4.NewClient(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
 			&oauth2.Token{AccessToken: *authToken},
 		))),
 		auth: &http.BasicAuth{
@@ -47,6 +65,11 @@ func main() {
 			Password: *authToken,
 		},
 	}
+	user, err := mirror.getUser()
+	if err != nil {
+		log.Fatalf("Unable to get username: %s", err.Error())
+	}
+	mirror.login = user
 
 	if *duration < time.Minute {
 		if err := mirror.updateOrCloneRepos(); err != nil {
@@ -64,12 +87,12 @@ func main() {
 	}
 }
 
-func (m *Mirror) updateOrClone(repo github.Repository) {
-	if _, err := os.Stat(filepath.Join(*checkoutPath, *repo.FullName)); err == nil {
-		log.Printf("Updating: %s\n", *repo.CloneURL)
+func (m *Mirror) updateOrClone(repo Repository) {
+	if _, err := os.Stat(filepath.Join(*checkoutPath, repo.NameWithOwner)); err == nil {
+		log.Printf("Updating: %s\n", repo.Url)
 		m.update(repo)
 	} else {
-		log.Printf("Cloning: %s\n", *repo.CloneURL)
+		log.Printf("Cloning: %s\n", repo.Url)
 		m.clone(repo)
 	}
 }
@@ -79,34 +102,34 @@ func (m *Mirror) updateOrCloneRepos() error {
 	repos := m.getRepos()
 	log.Printf("Looping repositories\n")
 	for repo := range repos {
-		m.updateOrClone(*repos[repo])
+		m.updateOrClone(repos[repo])
 	}
 	log.Printf("Finished looping\n")
 	return nil
 }
 
-func (m *Mirror) getRepos() []*github.Repository {
-	opt := &github.RepositoryListOptions{
-		ListOptions: github.ListOptions{PerPage: 10},
+func (m *Mirror) getRepos() []Repository {
+	q := ListRepositories{}
+	variables := map[string]interface{}{
+		"login": githubv4.String(m.login),
 	}
-	var allRepos []*github.Repository
+	var allRepos []Repository
 	for {
-		repos, resp, err := m.client.Repositories.List(m.ctx, "", opt)
+		err := m.client.Query(m.ctx, &q, variables)
 		if err != nil {
-			log.Printf("Error listing: %s\n", err)
+			return nil
 		}
-		allRepos = append(allRepos, repos...)
-		if resp.NextPage == 0 {
+		allRepos = append(allRepos, q.User.Repositories.Nodes...)
+		if !q.User.Repositories.PageInfo.HasNextPage {
 			break
 		}
-		opt.Page = resp.NextPage
 	}
 	return allRepos
 }
 
-func (m *Mirror) clone(repo github.Repository) {
-	_, err := git.PlainClone(filepath.Join(*checkoutPath, *repo.FullName), false, &git.CloneOptions{
-		URL:  *repo.CloneURL,
+func (m *Mirror) clone(repo Repository) {
+	_, err := git.PlainClone(filepath.Join(*checkoutPath, repo.NameWithOwner), false, &git.CloneOptions{
+		URL:  repo.Url,
 		Tags: git.AllTags,
 		Auth: m.auth,
 	})
@@ -115,8 +138,8 @@ func (m *Mirror) clone(repo github.Repository) {
 	}
 }
 
-func (m *Mirror) update(repo github.Repository) {
-	gitRepo, err := git.PlainOpen(filepath.Join(*checkoutPath, *repo.FullName))
+func (m *Mirror) update(repo Repository) {
+	gitRepo, err := git.PlainOpen(filepath.Join(*checkoutPath, repo.NameWithOwner))
 	if err != nil {
 		log.Printf("Open error: %s\n", err)
 	}
@@ -131,4 +154,17 @@ func (m *Mirror) update(repo github.Repository) {
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		log.Printf("Pull error: %s\n", err)
 	}
+}
+
+func (m *Mirror) getUser() (string, error) {
+	var q struct {
+		Viewer struct {
+			Login string
+		}
+	}
+	err := m.client.Query(context.Background(), &q, nil)
+	if err != nil {
+		return "", err
+	}
+	return q.Viewer.Login, nil
 }
