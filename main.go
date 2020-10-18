@@ -106,9 +106,8 @@ func main() {
 		}
 		return
 	}
-	log.Infof("Running every %s", *duration)
 	for {
-		log.Infof("Mirroring Repositories")
+		log.Infof("Mirroring Repositories every %s", *duration)
 		if err := mirror.updateOrCloneRepos(); err != nil {
 			log.Fatalf("Error mirroring repos: %s", err.Error())
 		}
@@ -116,48 +115,58 @@ func main() {
 	}
 }
 
-func (m *Mirror) updateOrClone(repo Repository) error {
+func (m *Mirror) updateOrClone(repo Repository) (bool, error) {
 	if *skipArchived && m.reposToSync[repo] && repo.Archived {
 		log.Debugf("Skipping sync: %s", repo.Url)
-		return nil
+		return true, nil
 	}
 	if _, err := os.Stat(filepath.Join(*checkoutPath, repo.NameWithOwner)); err == nil {
 		log.Debugf("Updating: %s", repo.Url)
 		if !*test {
-			return m.update(repo)
+			return false, m.update(repo)
 		}
-		return nil
+		return false, nil
 	} else {
 		log.Debugf("Cloning: %s", repo.Url)
 		if !*test {
-			return m.clone(repo)
+			return false, m.clone(repo)
 		}
-		return nil
+		return false, nil
 	}
 }
 
 func (m *Mirror) updateOrCloneRepos() error {
-	log.Infof("Getting repositories")
+	log.Infof("Retrieving repository list")
+	log.Debugf("Getting normal repositories")
 	repos := m.getRepos()
 	err := mergo.Merge(&m.reposToSync, &repos)
 	if err != nil {
 		log.Errorf("Unable to merge repos: %s", err.Error())
 	}
 	if *starred {
+		log.Debugf("Getting starred repos")
 		repos = m.getStarredRepos()
 		err := mergo.Merge(&m.reposToSync, &repos)
 		if err != nil {
 			log.Errorf("Unable to merge starred repos: %s", err.Error())
 		}
 	}
-	log.Infof("Looping %d repositories", len(m.reposToSync))
+
+	log.Infof("Started mirroring %d repositories", len(m.reposToSync))
+	numSkips := 0
+	numErrors := 0
 	for repo := range m.reposToSync {
-		err := m.updateOrClone(repo)
+		skipped, err := m.updateOrClone(repo)
 		if *test || err == nil {
 			m.reposToSync[repo] = true
+		} else {
+			numErrors++
+		}
+		if skipped {
+			numSkips++
 		}
 	}
-	log.Infof("Finished looping")
+	log.Infof("Finished mirroring %d repositories: %d errors, %d skipped", len(m.reposToSync), numErrors, numSkips)
 	return nil
 }
 
