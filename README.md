@@ -5,7 +5,7 @@ or updated as required, they will be stored under the path specified sorted by u
 
 ### Access token
 
-Running this will require a [github personal access token](https://github.com/settings/tokens), 
+Running this will require a [github personal access token](https://docs.github.com/en/free-pro-team@latest/github/authenticating-to-github/creating-a-personal-access-token), 
 this will require the `repo` or `public_repo` scope to be  able to list the repositories to clone.
 
 ## Docker usage
