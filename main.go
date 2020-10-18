@@ -37,28 +37,24 @@ type Mirror struct {
 
 type ListRepositories struct {
 	User struct {
-		Repositories struct {
-			PageInfo struct {
-				EndCursor   *githubv4.String
-				HasNextPage bool
-			}
-			Nodes []Repository
-		} `graphql:"repositories(first: 100, after: $cursor)"`
+		Repositories Repositories `graphql:"repositories(first: 100, after: $cursor)"`
 	} `graphql:"user(login: $login)"`
 }
 
 type ListStarredRepositories struct {
 	User struct {
-		StarredRepositories struct {
-			PageInfo struct {
-				EndCursor   *githubv4.String
-				HasNextPage bool
-			}
-			Edges []struct {
-				Node Repository
-			}
-		} `graphql:"starredRepositories(first: 100, after: $cursor)"`
+		Repositories Repositories `graphql:"starredRepositories(first: 100, after: $cursor)"`
 	} `graphql:"user(login: $login)"`
+}
+
+type Repositories struct {
+	PageInfo struct {
+		EndCursor   *githubv4.String
+		HasNextPage bool
+	}
+	Edges []struct {
+		Node Repository
+	}
 }
 
 type Repository struct {
@@ -161,8 +157,8 @@ func (m *Mirror) getRepos() map[Repository]struct{} {
 			log.Errorf("Unable to query for repositories: %s", err.Error())
 			return nil
 		}
-		for index := range q.User.Repositories.Nodes {
-			allRepos[q.User.Repositories.Nodes[index]] = struct{}{}
+		for index := range q.User.Repositories.Edges {
+			allRepos[q.User.Repositories.Edges[index].Node] = struct{}{}
 		}
 		if !q.User.Repositories.PageInfo.HasNextPage {
 			break
@@ -185,13 +181,13 @@ func (m *Mirror) getStarredRepos() map[Repository]struct{} {
 			log.Errorf("Unable to query for repositories: %s", err.Error())
 			return nil
 		}
-		for index := range q.User.StarredRepositories.Edges {
-			allRepos[q.User.StarredRepositories.Edges[index].Node] = struct{}{}
+		for index := range q.User.Repositories.Edges {
+			allRepos[q.User.Repositories.Edges[index].Node] = struct{}{}
 		}
-		if !q.User.StarredRepositories.PageInfo.HasNextPage {
+		if !q.User.Repositories.PageInfo.HasNextPage {
 			break
 		}
-		variables["cursor"] = q.User.StarredRepositories.PageInfo.EndCursor
+		variables["cursor"] = q.User.Repositories.PageInfo.EndCursor
 	}
 	return allRepos
 }
