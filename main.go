@@ -19,6 +19,7 @@ var (
 	checkoutPath = flag.String("checkoutpath", "/data", "Folder to clone repos into")
 	authToken    = flag.String("authtoken", "", "Personal Access token")
 	duration     = flag.Duration("duration", 0, "Number of seconds between executions")
+	starred      = flag.Bool("starred", false, "Mirror starred repositories")
 )
 
 type Mirror struct {
@@ -37,6 +38,20 @@ type ListRepositories struct {
 			}
 			Nodes []Repository
 		} `graphql:"repositories(first: 100)"`
+	} `graphql:"user(login: $login)"`
+}
+
+type ListStarredRepositories struct {
+	User struct {
+		StarredRepositories struct {
+			PageInfo struct {
+				EndCursor   string
+				HasNextPage bool
+			}
+			Edges []struct {
+				Node Repository
+			}
+		} `graphql:"starredRepositories(first: 100)"`
 	} `graphql:"user(login: $login)"`
 }
 
@@ -104,6 +119,13 @@ func (m *Mirror) updateOrCloneRepos() error {
 	for repo := range repos {
 		m.updateOrClone(repos[repo])
 	}
+	if *starred {
+		repos = m.getStarredRepos()
+		log.Printf("Looping starred repositories\n")
+		for repo := range repos {
+			m.updateOrClone(repos[repo])
+		}
+	}
 	log.Printf("Finished looping\n")
 	return nil
 }
@@ -121,6 +143,28 @@ func (m *Mirror) getRepos() []Repository {
 		}
 		allRepos = append(allRepos, q.User.Repositories.Nodes...)
 		if !q.User.Repositories.PageInfo.HasNextPage {
+			break
+		}
+	}
+	return allRepos
+}
+
+func (m *Mirror) getStarredRepos() []Repository {
+	q := ListStarredRepositories{}
+	variables := map[string]interface{}{
+		"login": githubv4.String(m.login),
+	}
+	var allRepos []Repository
+	for {
+		err := m.client.Query(m.ctx, &q, variables)
+		if err != nil {
+			log.Printf("Error: %+v", err.Error())
+			return nil
+		}
+		for index := range q.User.StarredRepositories.Edges {
+			allRepos = append(allRepos, q.User.StarredRepositories.Edges[index].Node)
+		}
+		if !q.User.StarredRepositories.PageInfo.HasNextPage {
 			break
 		}
 	}
