@@ -33,11 +33,11 @@ type ListRepositories struct {
 	User struct {
 		Repositories struct {
 			PageInfo struct {
-				EndCursor   string
+				EndCursor   *githubv4.String
 				HasNextPage bool
 			}
 			Nodes []Repository
-		} `graphql:"repositories(first: 100)"`
+		} `graphql:"repositories(first: 100, after: $cursor)"`
 	} `graphql:"user(login: $login)"`
 }
 
@@ -45,13 +45,13 @@ type ListStarredRepositories struct {
 	User struct {
 		StarredRepositories struct {
 			PageInfo struct {
-				EndCursor   string
+				EndCursor   *githubv4.String
 				HasNextPage bool
 			}
 			Edges []struct {
 				Node Repository
 			}
-		} `graphql:"starredRepositories(first: 100)"`
+		} `graphql:"starredRepositories(first: 100, after: $cursor)"`
 	} `graphql:"user(login: $login)"`
 }
 
@@ -134,6 +134,7 @@ func (m *Mirror) getRepos() []Repository {
 	q := ListRepositories{}
 	variables := map[string]interface{}{
 		"login": githubv4.String(m.login),
+		"cursor": (*githubv4.String)(nil),
 	}
 	var allRepos []Repository
 	for {
@@ -145,6 +146,7 @@ func (m *Mirror) getRepos() []Repository {
 		if !q.User.Repositories.PageInfo.HasNextPage {
 			break
 		}
+		variables["cursor"] = q.User.Repositories.PageInfo.EndCursor
 	}
 	return allRepos
 }
@@ -153,6 +155,7 @@ func (m *Mirror) getStarredRepos() []Repository {
 	q := ListStarredRepositories{}
 	variables := map[string]interface{}{
 		"login": githubv4.String(m.login),
+		"cursor": (*githubv4.String)(nil),
 	}
 	var allRepos []Repository
 	for {
@@ -167,6 +170,7 @@ func (m *Mirror) getStarredRepos() []Repository {
 		if !q.User.StarredRepositories.PageInfo.HasNextPage {
 			break
 		}
+		variables["cursor"] = q.User.StarredRepositories.PageInfo.EndCursor
 	}
 	return allRepos
 }
