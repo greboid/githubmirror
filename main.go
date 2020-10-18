@@ -108,10 +108,10 @@ func main() {
 func (m *Mirror) updateOrClone(repo Repository) {
 	if _, err := os.Stat(filepath.Join(*checkoutPath, repo.NameWithOwner)); err == nil {
 		log.Debugf("Updating: %s", repo.Url)
-		//m.update(repo)
+		m.update(repo)
 	} else {
 		log.Debugf("Cloning: %s", repo.Url)
-		//m.clone(repo)
+		m.clone(repo)
 	}
 }
 
