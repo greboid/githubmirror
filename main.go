@@ -21,6 +21,7 @@ import (
 
 var (
 	checkoutPath = flag.String("checkoutpath", "/data", "Folder to clone repos into")
+	skipArchived = flag.Bool("skip-archived", false, "Skip archived repositories after the first run")
 	authToken    = flag.String("authtoken", "", "Personal Access token")
 	duration     = flag.Duration("duration", 0, "Number of seconds between executions")
 	starred      = flag.Bool("starred", false, "Mirror starred repositories")
@@ -34,6 +35,7 @@ type Mirror struct {
 	client *githubv4.Client
 	auth   *http.BasicAuth
 	login  string
+	reposToSync map[Repository]bool
 }
 
 type ListRepositories struct {
@@ -61,6 +63,7 @@ type Repositories struct {
 type Repository struct {
 	NameWithOwner string
 	Url           string
+	Archived      bool `graphql:"isArchived"`
 }
 
 func main() {
@@ -88,6 +91,7 @@ func main() {
 			Username: "authToken", //Anything but blank
 			Password: *authToken,
 		},
+		reposToSync: make(map[Repository]bool),
 	}
 	user, err := mirror.getUser()
 	if err != nil {
@@ -112,50 +116,58 @@ func main() {
 	}
 }
 
-func (m *Mirror) updateOrClone(repo Repository) {
+func (m *Mirror) updateOrClone(repo Repository) error {
+	if *skipArchived && m.reposToSync[repo] && repo.Archived {
+		log.Debugf("Skipping sync: %s", repo.Url)
+		return nil
+	}
 	if _, err := os.Stat(filepath.Join(*checkoutPath, repo.NameWithOwner)); err == nil {
 		log.Debugf("Updating: %s", repo.Url)
 		if !*test {
-			m.update(repo)
+			return m.update(repo)
 		}
+		return nil
 	} else {
 		log.Debugf("Cloning: %s", repo.Url)
 		if !*test {
-			m.clone(repo)
+			return m.clone(repo)
 		}
+		return nil
 	}
 }
 
 func (m *Mirror) updateOrCloneRepos() error {
-	reposToSync := make(map[Repository]struct{})
 	log.Infof("Getting repositories")
 	repos := m.getRepos()
-	err := mergo.Map(&reposToSync, &repos)
+	err := mergo.Merge(&m.reposToSync, &repos)
 	if err != nil {
 		log.Errorf("Unable to merge repos: %s", err.Error())
 	}
 	if *starred {
 		repos = m.getStarredRepos()
-		err := mergo.Map(&reposToSync, &repos)
+		err := mergo.Merge(&m.reposToSync, &repos)
 		if err != nil {
 			log.Errorf("Unable to merge starred repos: %s", err.Error())
 		}
 	}
-	log.Infof("Looping %d repositories", len(reposToSync))
-	for repo := range reposToSync {
-		m.updateOrClone(repo)
+	log.Infof("Looping %d repositories", len(m.reposToSync))
+	for repo := range m.reposToSync {
+		err := m.updateOrClone(repo)
+		if *test || err == nil {
+			m.reposToSync[repo] = true
+		}
 	}
 	log.Infof("Finished looping")
 	return nil
 }
 
-func (m *Mirror) getRepos() map[Repository]struct{} {
+func (m *Mirror) getRepos() map[Repository]bool {
 	q := ListRepositories{}
 	variables := map[string]interface{}{
 		"login":  githubv4.String(m.login),
 		"cursor": (*githubv4.String)(nil),
 	}
-	allRepos := make(map[Repository]struct{})
+	allRepos := make(map[Repository]bool)
 	for {
 		err := m.client.Query(m.ctx, &q, variables)
 		if err != nil {
@@ -163,7 +175,7 @@ func (m *Mirror) getRepos() map[Repository]struct{} {
 			return nil
 		}
 		for index := range q.User.Repositories.Edges {
-			allRepos[q.User.Repositories.Edges[index].Node] = struct{}{}
+			allRepos[q.User.Repositories.Edges[index].Node] = false
 		}
 		if !q.User.Repositories.PageInfo.HasNextPage {
 			break
@@ -173,13 +185,13 @@ func (m *Mirror) getRepos() map[Repository]struct{} {
 	return allRepos
 }
 
-func (m *Mirror) getStarredRepos() map[Repository]struct{} {
+func (m *Mirror) getStarredRepos() map[Repository]bool {
 	q := ListStarredRepositories{}
 	variables := map[string]interface{}{
 		"login":  githubv4.String(m.login),
 		"cursor": (*githubv4.String)(nil),
 	}
-	allRepos := make(map[Repository]struct{})
+	allRepos := make(map[Repository]bool)
 	for {
 		err := m.client.Query(m.ctx, &q, variables)
 		if err != nil {
@@ -187,7 +199,7 @@ func (m *Mirror) getStarredRepos() map[Repository]struct{} {
 			return nil
 		}
 		for index := range q.User.Repositories.Edges {
-			allRepos[q.User.Repositories.Edges[index].Node] = struct{}{}
+			allRepos[q.User.Repositories.Edges[index].Node] = false
 		}
 		if !q.User.Repositories.PageInfo.HasNextPage {
 			break
@@ -197,7 +209,7 @@ func (m *Mirror) getStarredRepos() map[Repository]struct{} {
 	return allRepos
 }
 
-func (m *Mirror) clone(repo Repository) {
+func (m *Mirror) clone(repo Repository) error {
 	_, err := git.PlainClone(filepath.Join(*checkoutPath, repo.NameWithOwner), false, &git.CloneOptions{
 		URL:  repo.Url,
 		Tags: git.AllTags,
@@ -205,17 +217,21 @@ func (m *Mirror) clone(repo Repository) {
 	})
 	if err != nil {
 		log.Errorf("Error cloning: %s: %", repo.NameWithOwner, err)
+		return err
 	}
+	return nil
 }
 
-func (m *Mirror) update(repo Repository) {
+func (m *Mirror) update(repo Repository) error {
 	gitRepo, err := git.PlainOpen(filepath.Join(*checkoutPath, repo.NameWithOwner))
 	if err != nil {
 		log.Errorf("Open error: %s: %s", repo.NameWithOwner, err)
+		return err
 	}
 	workTree, err := gitRepo.Worktree()
 	if err != nil {
 		log.Errorf("Worktree error: %s: %s", repo.NameWithOwner, err)
+		return err
 	}
 	err = workTree.Pull(&git.PullOptions{
 		Force: true,
@@ -223,7 +239,9 @@ func (m *Mirror) update(repo Repository) {
 	})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		log.Errorf("Pull error: %s: %s", repo.NameWithOwner, err)
+		return err
 	}
+	return nil
 }
 
 func (m *Mirror) getUser() (string, error) {
