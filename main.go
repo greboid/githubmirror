@@ -25,6 +25,7 @@ var (
 	duration     = flag.Duration("duration", 0, "Number of seconds between executions")
 	starred      = flag.Bool("starred", false, "Mirror starred repositories")
 	debug        = flag.Bool("debug", false, "Output debug logging")
+	test         = flag.Bool("test", false, "Test run only, don't actually clone/update")
 	log          *zap.SugaredLogger
 )
 
@@ -114,10 +115,14 @@ func main() {
 func (m *Mirror) updateOrClone(repo Repository) {
 	if _, err := os.Stat(filepath.Join(*checkoutPath, repo.NameWithOwner)); err == nil {
 		log.Debugf("Updating: %s", repo.Url)
-		m.update(repo)
+		if !*test {
+			m.update(repo)
+		}
 	} else {
 		log.Debugf("Cloning: %s", repo.Url)
-		m.clone(repo)
+		if !*test {
+			m.clone(repo)
+		}
 	}
 }
 
