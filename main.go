@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/imdario/mergo"
 	"github.com/kouhin/envflag"
 	"github.com/shurcooL/githubv4"
 	"go.uber.org/zap"
@@ -36,8 +37,13 @@ type Mirror struct {
 
 type ListRepositories struct {
 	User struct {
-		Repositories Repositories `graphql:"repositories(first: $num, after: $cursor)"`
-		StarredRepositories Repositories `graphql:"starredRepositories(first: $numstarred, after: $starredCursor)"`
+		Repositories Repositories `graphql:"repositories(first: 100, after: $cursor)"`
+	} `graphql:"user(login: $login)"`
+}
+
+type ListStarredRepositories struct {
+	User struct {
+		Repositories Repositories `graphql:"starredRepositories(first: 100, after: $cursor)"`
 	} `graphql:"user(login: $login)"`
 }
 
@@ -116,10 +122,22 @@ func (m *Mirror) updateOrClone(repo Repository) {
 }
 
 func (m *Mirror) updateOrCloneRepos() error {
+	reposToSync := make(map[Repository]struct{})
 	log.Infof("Getting repositories")
 	repos := m.getRepos()
-	log.Infof("Looping %d repositories", len(repos))
-	for repo := range repos {
+	err := mergo.Map(&reposToSync, &repos)
+	if err != nil {
+		log.Errorf("Unable to merge repos: %s", err.Error())
+	}
+	if *starred {
+		repos = m.getStarredRepos()
+		err := mergo.Map(&reposToSync, &repos)
+		if err != nil {
+			log.Errorf("Unable to merge starred repos: %s", err.Error())
+		}
+	}
+	log.Infof("Looping %d repositories", len(reposToSync))
+	for repo := range reposToSync {
 		m.updateOrClone(repo)
 	}
 	log.Infof("Finished looping")
@@ -128,20 +146,11 @@ func (m *Mirror) updateOrCloneRepos() error {
 
 func (m *Mirror) getRepos() map[Repository]struct{} {
 	q := ListRepositories{}
-	num := 100
-	numStarred := num
-	if !*starred {
-		numStarred = 0
-	}
 	variables := map[string]interface{}{
 		"login":  githubv4.String(m.login),
 		"cursor": (*githubv4.String)(nil),
-		"starredCursor": (*githubv4.String)(nil),
-		"numstarred": githubv4.Int(numStarred),
-		"num": githubv4.Int(num),
 	}
 	allRepos := make(map[Repository]struct{})
-	var reposNext, starredReposNext bool
 	for {
 		err := m.client.Query(m.ctx, &q, variables)
 		if err != nil {
@@ -151,26 +160,34 @@ func (m *Mirror) getRepos() map[Repository]struct{} {
 		for index := range q.User.Repositories.Edges {
 			allRepos[q.User.Repositories.Edges[index].Node] = struct{}{}
 		}
-		for index := range q.User.StarredRepositories.Edges {
-			allRepos[q.User.StarredRepositories.Edges[index].Node] = struct{}{}
-		}
-		if q.User.Repositories.PageInfo.HasNextPage {
-			reposNext = true
-			variables["cursor"] = q.User.Repositories.PageInfo.EndCursor
-		} else {
-			reposNext = false
-			variables["cursor"] = (*githubv4.String)(nil)
-		}
-		if *starred && q.User.StarredRepositories.PageInfo.HasNextPage {
-			starredReposNext = true
-			variables["starredCursor"] = q.User.StarredRepositories.PageInfo.EndCursor
-		} else {
-			starredReposNext = false
-			variables["starredCursor"] = (*githubv4.String)(nil)
-		}
-		if !reposNext && !starredReposNext {
+		if !q.User.Repositories.PageInfo.HasNextPage {
 			break
 		}
+		variables["cursor"] = q.User.Repositories.PageInfo.EndCursor
+	}
+	return allRepos
+}
+
+func (m *Mirror) getStarredRepos() map[Repository]struct{} {
+	q := ListStarredRepositories{}
+	variables := map[string]interface{}{
+		"login":  githubv4.String(m.login),
+		"cursor": (*githubv4.String)(nil),
+	}
+	allRepos := make(map[Repository]struct{})
+	for {
+		err := m.client.Query(m.ctx, &q, variables)
+		if err != nil {
+			log.Errorf("Unable to query for repositories: %s", err.Error())
+			return nil
+		}
+		for index := range q.User.Repositories.Edges {
+			allRepos[q.User.Repositories.Edges[index].Node] = struct{}{}
+		}
+		if !q.User.Repositories.PageInfo.HasNextPage {
+			break
+		}
+		variables["cursor"] = q.User.Repositories.PageInfo.EndCursor
 	}
 	return allRepos
 }
