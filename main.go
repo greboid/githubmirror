@@ -74,7 +74,7 @@ func main() {
 		flag.Usage()
 		return
 	}
-	log := logger.MustCreateLogger(*debug)
+	log = logger.MustCreateLogger(*debug)
 
 	mirror := &Mirror{
 		ctx: context.Background(),
