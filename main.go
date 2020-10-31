@@ -8,10 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"go.uber.org/zap/zapcore"
-
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/greboid/go-log"
 	"github.com/imdario/mergo"
 	"github.com/kouhin/envflag"
 	"github.com/shurcooL/githubv4"
@@ -31,10 +30,10 @@ var (
 )
 
 type Mirror struct {
-	ctx    context.Context
-	client *githubv4.Client
-	auth   *http.BasicAuth
-	login  string
+	ctx         context.Context
+	client      *githubv4.Client
+	auth        *http.BasicAuth
+	login       string
 	reposToSync map[Repository]bool
 }
 
@@ -75,12 +74,7 @@ func main() {
 		flag.Usage()
 		return
 	}
-	logger, err := CreateLogger(*debug)
-	if err != nil {
-		fmt.Printf("Unable to create logger: %s\r\n", err.Error())
-		return
-	}
-	log = logger
+	log := logger.MustCreateLogger(*debug)
 
 	mirror := &Mirror{
 		ctx: context.Background(),
@@ -264,23 +258,4 @@ func (m *Mirror) getUser() (string, error) {
 		return "", err
 	}
 	return q.Viewer.Login, nil
-}
-
-func CreateLogger(debug bool) (*zap.SugaredLogger, error) {
-	zapConfig := zap.NewDevelopmentConfig()
-	zapConfig.DisableCaller = !debug
-	zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	zapConfig.DisableStacktrace = !debug
-	zapConfig.OutputPaths = []string{"stdout"}
-	if debug {
-		zapConfig.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
-	} else {
-		zapConfig.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
-	}
-
-	logger, err := zapConfig.Build()
-	if err != nil {
-		return nil, err
-	}
-	return logger.Sugar(), nil
 }
