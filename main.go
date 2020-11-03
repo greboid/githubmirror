@@ -236,12 +236,30 @@ func (m *Mirror) update(repo Repository) error {
 		log.Errorf("Worktree error: %s: %s", repo.NameWithOwner, err)
 		return err
 	}
+	err = gitRepo.Fetch(&git.FetchOptions{
+		Tags:  git.AllTags,
+		Force: true,
+	})
+	if err != nil && err != git.NoErrAlreadyUpToDate {
+		log.Errorf("Fetch error: %s: %s", repo.NameWithOwner, err)
+		return err
+	}
 	err = workTree.Pull(&git.PullOptions{
 		Force: true,
 		Auth:  m.auth,
 	})
-	if err != nil && err != git.NoErrAlreadyUpToDate {
+	if err == nil {
+		return nil
+	}
+	if err != git.ErrNonFastForwardUpdate {
 		log.Errorf("Pull error: %s: %s", repo.NameWithOwner, err)
+		return err
+	}
+	err = workTree.Reset(&git.ResetOptions{
+		Mode: git.HardReset,
+	})
+	if err != nil {
+		log.Errorf("Reset error: %s: %s", repo.NameWithOwner, err)
 		return err
 	}
 	return nil
