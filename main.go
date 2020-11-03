@@ -239,7 +239,11 @@ func (m *Mirror) update(repo Repository) error {
 	err = gitRepo.Fetch(&git.FetchOptions{
 		Tags:  git.AllTags,
 		Force: true,
+		Auth: m.auth,
 	})
+	if err != nil && err == git.NoErrAlreadyUpToDate {
+		return nil
+	}
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		log.Errorf("Fetch error: %s: %s", repo.NameWithOwner, err)
 		return err
