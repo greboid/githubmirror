@@ -95,14 +95,14 @@ func main() {
 	mirror.login = user
 
 	if *duration < time.Minute {
-		if err := mirror.updateOrCloneRepos(); err != nil {
+		if err = mirror.updateOrCloneRepos(); err != nil {
 			log.Fatalf("Error mirroring repos: %s", err.Error())
 		}
 		return
 	}
 	for {
 		log.Infof("Mirroring Repositories every %s", *duration)
-		if err := mirror.updateOrCloneRepos(); err != nil {
+		if err = mirror.updateOrCloneRepos(); err != nil {
 			log.Fatalf("Error mirroring repos: %s", err.Error())
 		}
 		time.Sleep(*duration)
@@ -140,7 +140,7 @@ func (m *Mirror) updateOrCloneRepos() error {
 	if *starred {
 		log.Debugf("Getting starred repos")
 		repos = m.getStarredRepos()
-		err := mergo.Merge(&m.reposToSync, &repos)
+		err = mergo.Merge(&m.reposToSync, &repos)
 		if err != nil {
 			log.Errorf("Unable to merge starred repos: %s", err.Error())
 		}
@@ -219,7 +219,7 @@ func (m *Mirror) clone(repo Repository) error {
 		Auth: m.auth,
 	})
 	if err != nil {
-		log.Errorf("Error cloning: %s: %", repo.NameWithOwner, err)
+		log.Errorf("Error cloning: %s: %s", repo.NameWithOwner, err)
 		return err
 	}
 	return nil
@@ -239,7 +239,7 @@ func (m *Mirror) update(repo Repository) error {
 	err = gitRepo.Fetch(&git.FetchOptions{
 		Tags:  git.AllTags,
 		Force: true,
-		Auth: m.auth,
+		Auth:  m.auth,
 	})
 	if err != nil && err == git.NoErrAlreadyUpToDate {
 		return nil
