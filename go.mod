@@ -2,6 +2,8 @@ module github.com/greboid/githubmirror
 
 go 1.19
 
+replace github.com/pjbgf/sha1cd v0.2.0 => github.com/pjbgf/sha1cd v0.2.3
+
 require (
 	github.com/go-git/go-git/v5 v5.5.0
 	github.com/greboid/go-log v1.0.2
