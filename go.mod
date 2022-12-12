@@ -5,7 +5,7 @@ go 1.19
 replace github.com/pjbgf/sha1cd v0.2.0 => github.com/pjbgf/sha1cd v0.2.3
 
 require (
-	github.com/go-git/go-git/v5 v5.5.0
+	github.com/go-git/go-git/v5 v5.5.1
 	github.com/greboid/go-log v1.0.2
 	github.com/imdario/mergo v0.3.13
 	github.com/kouhin/envflag v0.0.0-20150818174321-0e9a86061649
@@ -27,10 +27,10 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/pjbgf/sha1cd v0.2.0 // indirect
+	github.com/pjbgf/sha1cd v0.2.3 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/skeema/knownhosts v1.1.0 // indirect
-	github.com/xanzy/ssh-agent v0.3.2 // indirect
+	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.3.0 // indirect
