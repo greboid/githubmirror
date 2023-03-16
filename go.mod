@@ -3,7 +3,7 @@ module github.com/greboid/githubmirror
 go 1.20
 
 require (
-	github.com/go-git/go-git/v5 v5.6.0
+	github.com/go-git/go-git/v5 v5.6.1
 	github.com/greboid/go-log v1.0.2
 	github.com/imdario/mergo v0.3.13
 	github.com/kouhin/envflag v0.0.0-20150818174321-0e9a86061649
@@ -17,7 +17,7 @@ require (
 require (
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
-	github.com/acomagu/bufpipe v1.0.3 // indirect
+	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/cloudflare/circl v1.3.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
