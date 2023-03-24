@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/go-git/go-git/v5 v5.6.1
 	github.com/greboid/go-log v1.0.2
-	github.com/imdario/mergo v0.3.14
+	github.com/imdario/mergo v0.3.15
 	github.com/kouhin/envflag v0.0.0-20150818174321-0e9a86061649
 	github.com/shurcooL/githubv4 v0.0.0-20230215024106-420ad0987b9b
 	github.com/shurcooL/graphql v0.0.0-20220606043923-3cf50f8a0a29 // indirect
