@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.24.0
 
 require (
-	github.com/go-git/go-git/v5 v5.16.0
+	github.com/go-git/go-git/v5 v5.16.3
 	github.com/greboid/go-log v1.0.2
 	github.com/imdario/mergo v0.3.16
 	github.com/kouhin/envflag v0.0.0-20150818174321-0e9a86061649
