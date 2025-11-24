@@ -3,7 +3,7 @@ module github.com/greboid/githubmirror
 go 1.24.0
 
 require (
-	github.com/go-git/go-git/v5 v5.16.3
+	github.com/go-git/go-git/v5 v5.16.4
 	github.com/greboid/go-log v1.0.2
 	github.com/imdario/mergo v0.3.16
 	github.com/kouhin/envflag v0.0.0-20150818174321-0e9a86061649
