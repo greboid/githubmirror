@@ -3,7 +3,7 @@ module github.com/greboid/githubmirror
 go 1.25.0
 
 require (
-	github.com/go-git/go-git/v5 v5.19.1
+	github.com/go-git/go-git/v5 v5.19.2
 	github.com/greboid/go-log v1.0.2
 	github.com/imdario/mergo v0.3.16
 	github.com/kouhin/envflag v0.0.0-20150818174321-0e9a86061649
@@ -31,8 +31,8 @@ require (
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
